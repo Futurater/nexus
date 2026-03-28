@@ -19,7 +19,12 @@ import { Snackbar } from '@mui/material';
 
 // TODO remove, this demo shouldn't need to reset the theme.
 
-const defaultTheme = createTheme();
+const defaultTheme = createTheme({
+    palette: {
+        mode: 'dark',
+        primary: { main: '#2563EB' }
+    }
+});
 
 export default function Authentication() {
 
@@ -68,27 +73,39 @@ export default function Authentication() {
 
     return (
         <ThemeProvider theme={defaultTheme}>
-            <Grid container component="main" sx={{ height: '100vh' }}>
+            <Grid
+                container
+                component="main"
+                sx={{
+                    minHeight: '100vh',
+                    backgroundImage: 'url("/public/background.png")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}
+            >
                 <CssBaseline />
                 <Grid
                     item
-                    xs={false}
-                    sm={4}
-                    md={7}
+                    xs={12}
+                    sm={8}
+                    md={5}
+                    component={Paper}
+                    elevation={0}
                     sx={{
-                        backgroundImage: 'url(https://source.unsplash.com/random?wallpapers)',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundColor: (t) =>
-                            t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
+                        backgroundColor: 'rgba(18, 24, 38, 0.55)',
+                        backdropFilter: 'blur(4px)',
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        color: '#fff'
                     }}
-                />
-                <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
+                >
                     <Box
                         sx={{
-                            my: 8,
-                            mx: 4,
+                            p: 4,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -119,6 +136,14 @@ export default function Authentication() {
                                 value={name}
                                 autoFocus
                                 onChange={(e) => setName(e.target.value)}
+                                sx={{
+                                    '& .MuiInputBase-input': { color: '#fff' },
+                                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.85)' },
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fff' },
+                                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' }
+                                }}
                             /> : <></>}
 
                             <TextField
@@ -131,6 +156,14 @@ export default function Authentication() {
                                 value={username}
                                 autoFocus
                                 onChange={(e) => setUsername(e.target.value)}
+                                sx={{
+                                    '& .MuiInputBase-input': { color: '#fff' },
+                                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.85)' },
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fff' },
+                                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' }
+                                }}
 
                             />
                             <TextField
@@ -144,6 +177,14 @@ export default function Authentication() {
                                 onChange={(e) => setPassword(e.target.value)}
 
                                 id="password"
+                                sx={{
+                                    '& .MuiInputBase-input': { color: '#fff' },
+                                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.85)' },
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fff' },
+                                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' }
+                                }}
                             />
 
                             <p style={{ color: "red" }}>{error}</p>

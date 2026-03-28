@@ -12,6 +12,9 @@ import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare'
 import ChatIcon from '@mui/icons-material/Chat'
 import server from '../environment';
+import ReactMarkdown from 'react-markdown';
+import { Dialog, DialogTitle, DialogContent } from '@mui/material';
+import useTranscription from '../hooks/useTranscription';
 
 const server_url = server;
 
@@ -57,6 +60,15 @@ export default function VideoMeetComponent() {
     const videoRef = useRef([])
 
     let [videos, setVideos] = useState([])
+    let [summarizeOpen, setSummarizeOpen] = useState(false)
+    let [transcriptText, setTranscriptText] = useState("")
+    let [recapMarkdown, setRecapMarkdown] = useState("")
+    let [summarizeLoading, setSummarizeLoading] = useState(false)
+    let [summarizeError, setSummarizeError] = useState("")
+    let [meetingLog, setMeetingLog] = useState([])
+    const transcriptListRef = useRef(null)
+    const [manualNote, setManualNote] = useState("")
+    const [showTranscript, setShowTranscript] = useState(false)
 
     // TODO
     // if(isChrome() === false) {
@@ -65,10 +77,8 @@ export default function VideoMeetComponent() {
     // }
 
     useEffect(() => {
-        console.log("HELLO")
         getPermissions();
-
-    })
+    }, [])
 
     let getDislayMedia = () => {
         if (screen) {
@@ -86,19 +96,15 @@ export default function VideoMeetComponent() {
             const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
             if (videoPermission) {
                 setVideoAvailable(true);
-                console.log('Video permission granted');
             } else {
                 setVideoAvailable(false);
-                console.log('Video permission denied');
             }
 
             const audioPermission = await navigator.mediaDevices.getUserMedia({ audio: true });
             if (audioPermission) {
                 setAudioAvailable(true);
-                console.log('Audio permission granted');
             } else {
                 setAudioAvailable(false);
-                console.log('Audio permission denied');
             }
 
             if (navigator.mediaDevices.getDisplayMedia) {
@@ -147,21 +153,7 @@ export default function VideoMeetComponent() {
 
         window.localStream = stream
         localVideoref.current.srcObject = stream
-
-        for (let id in connections) {
-            if (id === socketIdRef.current) continue
-
-            connections[id].addStream(window.localStream)
-
-            connections[id].createOffer().then((description) => {
-                console.log(description)
-                connections[id].setLocalDescription(description)
-                    .then(() => {
-                        socketRef.current.emit('signal', id, JSON.stringify({ 'sdp': connections[id].localDescription }))
-                    })
-                    .catch(e => console.log(e))
-            })
-        }
+        updateMediaSenders()
 
         stream.getTracks().forEach(track => track.onended = () => {
             setVideo(false);
@@ -176,17 +168,7 @@ export default function VideoMeetComponent() {
             window.localStream = blackSilence()
             localVideoref.current.srcObject = window.localStream
 
-            for (let id in connections) {
-                connections[id].addStream(window.localStream)
-
-                connections[id].createOffer().then((description) => {
-                    connections[id].setLocalDescription(description)
-                        .then(() => {
-                            socketRef.current.emit('signal', id, JSON.stringify({ 'sdp': connections[id].localDescription }))
-                        })
-                        .catch(e => console.log(e))
-                })
-            }
+            updateMediaSenders()
         })
     }
 
@@ -216,20 +198,7 @@ export default function VideoMeetComponent() {
 
         window.localStream = stream
         localVideoref.current.srcObject = stream
-
-        for (let id in connections) {
-            if (id === socketIdRef.current) continue
-
-            connections[id].addStream(window.localStream)
-
-            connections[id].createOffer().then((description) => {
-                connections[id].setLocalDescription(description)
-                    .then(() => {
-                        socketRef.current.emit('signal', id, JSON.stringify({ 'sdp': connections[id].localDescription }))
-                    })
-                    .catch(e => console.log(e))
-            })
-        }
+        updateMediaSenders()
 
         stream.getTracks().forEach(track => track.onended = () => {
             setScreen(false)
@@ -284,12 +253,26 @@ export default function VideoMeetComponent() {
 
             socketRef.current.on('chat-message', addMessage)
 
+            socketRef.current.on('new-transcript-entry', (data, socketIdSender) => {
+                if (socketIdSender !== socketIdRef.current) {
+                    setMeetingLog(prev => [...prev, data])
+                }
+            })
+
             socketRef.current.on('user-left', (id) => {
                 setVideos((videos) => videos.filter((video) => video.socketId !== id))
             })
 
             socketRef.current.on('user-joined', (id, clients) => {
                 clients.forEach((socketListId) => {
+
+                    if (socketListId === socketIdRef.current) {
+                        return;
+                    }
+
+                    if (connections[socketListId]) {
+                        return;
+                    }
 
                     connections[socketListId] = new RTCPeerConnection(peerConfigConnections)
                     // Wait for their ice candidate       
@@ -383,12 +366,37 @@ export default function VideoMeetComponent() {
     }
 
     let handleVideo = () => {
-        setVideo(!video);
-        // getUserMedia();
+        const next = !video;
+        setVideo(next);
+        if (!next) {
+            try {
+                if (window.localStream) {
+                    window.localStream.getVideoTracks().forEach(t => t.stop())
+                }
+                const audioTracks = window.localStream ? window.localStream.getAudioTracks() : [];
+                const onlyAudio = new MediaStream(audioTracks);
+                window.localStream = onlyAudio;
+                if (localVideoref.current) localVideoref.current.srcObject = onlyAudio;
+                updateMediaSenders();
+            } catch (e) { console.log(e) }
+        } else {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: audioAvailable })
+                .then(s => {
+                    window.localStream = s;
+                    if (localVideoref.current) localVideoref.current.srcObject = s;
+                    updateMediaSenders();
+                })
+                .catch(e => console.log(e))
+        }
     }
     let handleAudio = () => {
-        setAudio(!audio)
-        // getUserMedia();
+        const next = !audio;
+        setAudio(next);
+        if (window.localStream) {
+            const tracks = window.localStream.getAudioTracks();
+            tracks.forEach(t => t.enabled = next);
+        }
+        normalizeAudioSenders(next);
     }
 
     useEffect(() => {
@@ -439,6 +447,74 @@ export default function VideoMeetComponent() {
         // this.setState({ message: "", sender: username })
     }
 
+    const onFinalCommit = (text) => {
+        const entry = { user: username || 'Guest', text, timestamp: Date.now() }
+        setMeetingLog(prev => [...prev, entry])
+        if (socketRef.current) {
+            socketRef.current.emit('new-transcript-entry', entry)
+        }
+    }
+    const { isSupported, isListening, interimText, permissionError, start, stop } = useTranscription(onFinalCommit, { lang: 'en-IN' })
+
+    useEffect(() => {
+        if (transcriptListRef.current) {
+            transcriptListRef.current.scrollTop = transcriptListRef.current.scrollHeight
+        }
+    }, [meetingLog])
+    let renegotiateAll = () => {
+        for (let id in connections) {
+            try {
+                connections[id].createOffer().then((description) => {
+                    connections[id].setLocalDescription(description)
+                        .then(() => {
+                            socketRef.current.emit('signal', id, JSON.stringify({ 'sdp': connections[id].localDescription }))
+                        })
+                        .catch(e => console.log(e))
+                })
+            } catch (e) { console.log(e) }
+        }
+    }
+
+    let normalizeAudioSenders = (next) => {
+        for (let id in connections) {
+            try {
+                const pc = connections[id];
+                const senders = pc.getSenders().filter(s => s.track && s.track.kind === 'audio');
+                senders.forEach(s => {
+                    if (s.track) s.track.enabled = next;
+                });
+                for (let i = 1; i < senders.length; i++) {
+                    try { pc.removeTrack(senders[i]) } catch (e) { console.log(e) }
+                }
+            } catch (e) { console.log(e) }
+        }
+        renegotiateAll();
+    }
+    let updateMediaSenders = () => {
+        for (let id in connections) {
+            try {
+                const pc = connections[id];
+                const senders = pc.getSenders();
+                const vTrack = window.localStream.getVideoTracks()[0];
+                const aTrack = window.localStream.getAudioTracks()[0];
+                const vSenders = senders.filter(s => s.track && s.track.kind === 'video');
+                const aSenders = senders.filter(s => s.track && s.track.kind === 'audio');
+                if (vTrack) {
+                    if (vSenders[0]) { vSenders[0].replaceTrack(vTrack) } else { pc.addTrack(vTrack, window.localStream) }
+                    for (let i = 1; i < vSenders.length; i++) { try { pc.removeTrack(vSenders[i]) } catch (e) { console.log(e) } }
+                } else {
+                    vSenders.forEach(s => { try { pc.removeTrack(s) } catch (e) { console.log(e) } })
+                }
+                if (aTrack) {
+                    if (aSenders[0]) { aSenders[0].replaceTrack(aTrack) } else { pc.addTrack(aTrack, window.localStream) }
+                    for (let i = 1; i < aSenders.length; i++) { try { pc.removeTrack(aSenders[i]) } catch (e) { console.log(e) } }
+                } else {
+                    aSenders.forEach(s => { try { pc.removeTrack(s) } catch (e) { console.log(e) } })
+                }
+            } catch (e) { console.log(e) }
+        }
+        renegotiateAll();
+    }
     
     let connect = () => {
         setAskForUsername(false);
@@ -451,15 +527,34 @@ export default function VideoMeetComponent() {
 
             {askForUsername === true ?
 
-                <div>
+                <div className={styles.lobbyContainer}>
 
 
-                    <h2>Enter into Lobby </h2>
-                    <TextField id="outlined-basic" label="Username" value={username} onChange={e => setUsername(e.target.value)} variant="outlined" />
-                    <Button variant="contained" onClick={connect}>Connect</Button>
+                    <h2 className={styles.lobbyTitle}>Enter into Lobby</h2>
+                    <div className={styles.lobbyActions}>
+                        <TextField
+                            id="outlined-basic"
+                            label="Username"
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            variant="outlined"
+                            sx={{ minWidth: '240px' }}
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={connect}
+                            sx={{
+                                backgroundColor: '#2563EB',
+                                textTransform: 'none',
+                                '&:hover': { backgroundColor: '#1E4ED8' }
+                            }}
+                        >
+                            Connect
+                        </Button>
+                    </div>
 
 
-                    <div>
+                    <div className={styles.lobbyPreview}>
                         <video ref={localVideoref} autoPlay muted></video>
                     </div>
 
@@ -509,11 +604,35 @@ export default function VideoMeetComponent() {
                         <IconButton onClick={handleAudio} style={{ color: "white" }}>
                             {audio === true ? <MicIcon /> : <MicOffIcon />}
                         </IconButton>
+                        <Button
+                            variant="outlined"
+                            onClick={() => (isListening ? stop() : start())}
+                            sx={{ ml: 1, borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
+                        >
+                            {isListening ? "Stop Captions" : "Start Captions"}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={() => setShowTranscript(!showTranscript)}
+                            sx={{ ml: 1, borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
+                        >
+                            {showTranscript ? "Hide Log" : "Show Log"}
+                        </Button>
+                        <Button
+                            variant="contained"
+                            onClick={() => setSummarizeOpen(true)}
+                            sx={{ backgroundColor: '#2563EB', textTransform: 'none', ml: 1 }}
+                        >
+                            Summarize
+                        </Button>
 
-                        {screenAvailable === true ?
-                            <IconButton onClick={handleScreen} style={{ color: "white" }}>
-                                {screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
-                            </IconButton> : <></>}
+                        <IconButton
+                            onClick={handleScreen}
+                            disabled={!screenAvailable}
+                            style={{ color: "white", opacity: screenAvailable ? 1 : 0.5 }}
+                        >
+                            {screen ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+                        </IconButton>
 
                         <Badge badgeContent={newMessages} max={999} color='orange'>
                             <IconButton onClick={() => setModal(!showModal)} style={{ color: "white" }}>
@@ -522,10 +641,15 @@ export default function VideoMeetComponent() {
 
                     </div>
 
+                    {interimText && (
+                        <div className={styles.captionsOverlay}>
+                            {interimText}
+                        </div>
+                    )}
 
                     <video className={styles.meetUserVideo} ref={localVideoref} autoPlay muted></video>
 
-                    <div className={styles.conferenceView}>
+                    <div className={showTranscript ? styles.conferenceView : styles.conferenceViewChatOnly}>
                         {videos.map((video) => (
                             <div key={video.socketId}>
                                 <video
@@ -545,10 +669,111 @@ export default function VideoMeetComponent() {
 
                     </div>
 
+                    {showTranscript ? <div className={styles.transcriptSidebar} ref={transcriptListRef}>
+                        <h3>Meeting Log</h3>
+                        {!isSupported ? <p style={{ color: 'salmon' }}>Captions unavailable in this browser — use Add Note or try Chrome</p> : null}
+                        {permissionError === 'permission-denied' ? <p style={{ color: 'salmon' }}>Mic permission denied</p> : null}
+                        {permissionError === 'no-speech' ? <p style={{ color: 'salmon' }}>No speech detected — try again</p> : null}
+                        {permissionError === 'no-mic' ? <p style={{ color: 'salmon' }}>Microphone not available</p> : null}
+                        {meetingLog.map((entry, idx) => (
+                            <div key={idx} className={styles.transcriptItem}>
+                                <p style={{ fontWeight: 600 }}>{entry.user}</p>
+                                <p>{entry.text}</p>
+                            </div>
+                        ))}
+                        <div className={styles.transcriptControls}>
+                            <TextField
+                                value={manualNote}
+                                onChange={(e) => setManualNote(e.target.value)}
+                                label="Add note"
+                                size="small"
+                                fullWidth
+                                sx={{
+                                    '& .MuiInputBase-input': { color: '#fff' },
+                                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.85)' },
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fff' },
+                                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' }
+                                }}
+                            />
+                            <Button
+                                variant="outlined"
+                                onClick={() => {
+                                    const text = manualNote.trim();
+                                    if (!text) return;
+                                    const entry = { user: username || 'Guest', text, timestamp: Date.now() }
+                                    setMeetingLog(prev => [...prev, entry])
+                                    if (socketRef.current) {
+                                        socketRef.current.emit('new-transcript-entry', entry)
+                                    }
+                                    setManualNote("");
+                                }}
+                                sx={{ mt: 1, borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
+                            >
+                                Add Note
+                            </Button>
+                        </div>
+                    </div> : null}
+
                 </div>
 
             }
 
+            <Dialog open={summarizeOpen} onClose={() => setSummarizeOpen(false)} fullWidth maxWidth="md">
+                <DialogTitle>Generate Smart Recap</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        label="Paste transcript"
+                        value={transcriptText}
+                        onChange={(e) => setTranscriptText(e.target.value)}
+                        multiline
+                        minRows={6}
+                        fullWidth
+                        sx={{ my: 2 }}
+                    />
+                    <Button
+                        variant="contained"
+                        onClick={async () => {
+                            try {
+                                setSummarizeLoading(true);
+                                setSummarizeError("");
+                                setRecapMarkdown("");
+                                const code = window.location.pathname.replace("/", "");
+                                const compiled = meetingLog.length
+                                  ? meetingLog.map(e => `${e.user}: ${e.text}`).join("\n")
+                                  : transcriptText;
+                                const resp = await fetch(`${server_url}/api/meetings/summarize`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ meetingCode: code, transcript: compiled })
+                                });
+                                const data = await resp.json();
+                                if (!resp.ok) {
+                                    setSummarizeError(data?.message || "Failed to summarize.");
+                                } else {
+                                    setRecapMarkdown(data.recap || "");
+                                }
+                            } catch (e) {
+                                setSummarizeError((e && e.message) ? e.message : "Failed to summarize.");
+                            } finally {
+                                setSummarizeLoading(false);
+                            }
+                        }}
+                        sx={{ backgroundColor: '#2563EB', textTransform: 'none' }}
+                    >
+                        {summarizeLoading ? "Summarizing..." : "Summarize"}
+                    </Button>
+                    {summarizeError ? (
+                        <p style={{ color: "red", marginTop: 12 }}>{summarizeError}</p>
+                    ) : null}
+                    {recapMarkdown ? (
+                        <div style={{ marginTop: 16 }}>
+                            <ReactMarkdown>{recapMarkdown}</ReactMarkdown>
+                        </div>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

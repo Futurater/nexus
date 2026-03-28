@@ -8,6 +8,8 @@ import CardContent from '@mui/material/CardContent';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import HomeIcon from '@mui/icons-material/Home';
+import ReactMarkdown from 'react-markdown';
+import { Dialog, DialogTitle, DialogContent } from '@mui/material';
 
 import { IconButton } from '@mui/material';
 export default function History() {
@@ -16,6 +18,8 @@ export default function History() {
     const { getHistoryOfUser } = useContext(AuthContext);
 
     const [meetings, setMeetings] = useState([])
+    const [openRecap, setOpenRecap] = useState(false)
+    const [activeRecap, setActiveRecap] = useState("")
 
 
     const routeTo = useNavigate();
@@ -70,6 +74,16 @@ export default function History() {
                                     <Typography sx={{ mb: 1.5 }} color="text.secondary">
                                         Date: {formatDate(e.date)}
                                     </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => {
+                                            setActiveRecap(e.recap_markdown || "");
+                                            setOpenRecap(true);
+                                        }}
+                                        sx={{ borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
+                                    >
+                                        View Recap
+                                    </Button>
 
                                 </CardContent>
 
@@ -82,6 +96,17 @@ export default function History() {
                 }) : <></>
 
             }
+
+            <Dialog open={openRecap} onClose={() => setOpenRecap(false)} fullWidth maxWidth="md">
+                <DialogTitle>Meeting Recap</DialogTitle>
+                <DialogContent>
+                    {activeRecap ? (
+                        <ReactMarkdown>{activeRecap}</ReactMarkdown>
+                    ) : (
+                        <Typography color="text.secondary">No recap available for this meeting.</Typography>
+                    )}
+                </DialogContent>
+            </Dialog>
 
         </div>
     )

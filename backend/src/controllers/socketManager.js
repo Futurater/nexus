@@ -4,6 +4,7 @@ import { Server } from "socket.io"
 let connections = {}
 let messages = {}
 let timeOnline = {}
+let transcripts = {}
 
 export const connectToSocket = (server) => {
     const io = new Server(server, {
@@ -77,6 +78,26 @@ export const connectToSocket = (server) => {
                 })
             }
 
+        })
+
+        socket.on("new-transcript-entry", (data) => {
+            const [matchingRoom, found] = Object.entries(connections)
+                .reduce(([room, isFound], [roomKey, roomValue]) => {
+                    if (!isFound && roomValue.includes(socket.id)) {
+                        return [roomKey, true];
+                    }
+                    return [room, isFound];
+                }, ['', false]);
+
+            if (found === true) {
+                if (transcripts[matchingRoom] === undefined) {
+                    transcripts[matchingRoom] = []
+                }
+                transcripts[matchingRoom].push({ ...data, "socket-id-sender": socket.id })
+                connections[matchingRoom].forEach((elem) => {
+                    io.to(elem).emit("new-transcript-entry", data, socket.id)
+                })
+            }
         })
 
         socket.on("disconnect", () => {
