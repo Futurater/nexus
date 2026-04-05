@@ -176,7 +176,7 @@ The app will be available at **http://localhost:5173**.
 
 ### 4. Standalone AI Agent Setup (Optional)
 
-The repository also includes a standalone Python project (`nexus-adk-agent`) designed for deployment on Google Cloud Run. It uses the Google Agent Development Kit (ADK) to perform AI meeting summarization independently of the Express backend.
+The repository also includes a standalone Python project (`nexus-adk-agent`) designed for deployment on Google Cloud Run. It performs AI meeting summarization independently of the Express backend.
 
 ```bash
 cd nexus-adk-agent
@@ -184,7 +184,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8080
 ```
 
-*Note: You must set `GOOGLE_API_KEY` in your environment before running this agent.*
+*Note: You must set `GEMINI_API_KEY` in your environment before running this agent.*
 
 ---
 
@@ -220,14 +220,61 @@ uvicorn main:app --reload --port 8080
 
 ## 🌐 Deployment
 
-The application is deployed on **Render**:
+You can deploy Nexus on several platforms. This project includes Dockerfiles, `cloudbuild.yaml`, and a `deploy.sh` helper to simplify publishing to Google Cloud Run. Below are two common options.
 
-| Service | URL |
-|---------|-----|
-| **Backend** | `https://nexus-videocall.onrender.com` |
-| **Frontend** | `https://nexus-video-frontend.onrender.com` |
+1) Quick: Render / any PaaS
+- Set the environment variables `MONGO_URI` and `GEMINI_API_KEY` in the host dashboard.
+- Ensure CORS origin in `backend/src/app.js` and the frontend `environment.js` point to your deployment URL.
 
-To deploy your own instance, set the environment variables (`MONGO_URI`, `GEMINI_API_KEY`) in your hosting provider's dashboard and update the CORS origin in `backend/src/app.js` and the server URL in `frontend/src/environment.js`.
+2) Production-ready: Google Cloud (Cloud Run)
+
+- Prereqs: enable billing, enable APIs: `run.googleapis.com`, `cloudbuild.googleapis.com`, `artifactregistry.googleapis.com`, `secretmanager.googleapis.com`, and the Generative Language API.
+- Store secrets in Secret Manager (`MONGO_URI`, `GEMINI_API_KEY`) — do not bake secrets into images.
+- Build & push images (example using Cloud Build):
+
+```bash
+# set vars
+PROJECT_ID=YOUR_PROJECT_ID
+REGION=YOUR_REGION
+REPO=nexus-repo
+
+gcloud config set project $PROJECT_ID
+gcloud builds submit --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/backend:latest ./backend
+gcloud builds submit --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/agent:latest ./nexus-adk-agent
+gcloud builds submit --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/frontend:latest ./frontend
+```
+
+- Deploy to Cloud Run (mount secrets):
+
+```bash
+gcloud run deploy nexus-backend \
+  --image ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/backend:latest \
+  --region $REGION --platform managed --allow-unauthenticated \
+  --set-secrets MONGO_URI=projects/${PROJECT_ID}/secrets/MONGO_URI:latest,GEMINI_API_KEY=projects/${PROJECT_ID}/secrets/GEMINI_API_KEY:latest \
+  --set-env-vars PORT=8080
+
+gcloud run deploy nexus-agent \
+  --image ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/agent:latest \
+  --region $REGION --platform managed --allow-unauthenticated \
+  --set-secrets GEMINI_API_KEY=projects/${PROJECT_ID}/secrets/GEMINI_API_KEY:latest \
+  --set-env-vars PORT=8080
+```
+
+Frontend options:
+- Firebase Hosting (recommended for static React build): build with `npm run build` in `frontend/` and deploy via `firebase deploy`.
+- Or deploy the frontend Docker image to Cloud Run.
+
+Networking & MongoDB Atlas:
+- For quick testing, you can whitelist `0.0.0.0/0` in Atlas Network Access, but this is not secure for production.
+- For production, configure **Atlas VPC Peering** and a **Serverless VPC Connector** for Cloud Run, then deploy Cloud Run with `--vpc-connector=CONNECTOR_NAME` and `--egress-settings all-traffic`.
+
+Gemini & Billing:
+- The Generative Language (Gemini) API requires billing and appropriate quota for the chosen model. Make sure the API key used in Secret Manager belongs to a project with billing enabled and the Generative Language API activated.
+
+Automated deploy script:
+- A `deploy.sh` helper is included at the repository root to build, push, and deploy images; it also guides creating secrets. Review it before running and provide your `PROJECT_ID` and secret values when prompted.
+
+If you want, run `bash deploy.sh PROJECT_ID REGION REPO TAG` to perform an automated deploy (you will be prompted for secrets).
 
 ---
 

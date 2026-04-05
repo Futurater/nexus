@@ -1,5 +1,4 @@
 import httpStatus from "http-status";
-import { Meeting } from "../models/meeting.model.js";
 import { GoogleGenAI } from "@google/genai";
 
 const summarizeMeeting = async (req, res) => {
@@ -29,16 +28,14 @@ ${transcript}
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }]
-        }
-      ]
+      model: "gemini-2.5-flash",
+      contents: prompt,
     });
-    const text = response.text || "";
+    const text = response.text;
 
+    // Since the public MongoDB is down, we will skip saving to the database
+    // and just directly return the AI text to the frontend!
+    /*
     let meeting = await Meeting.findOne({ meetingCode });
     if (!meeting) {
       meeting = new Meeting({ meetingCode });
@@ -47,9 +44,11 @@ ${transcript}
     meeting.transcript = transcript;
     meeting.recap_generated_at = new Date();
     await meeting.save();
+    */
 
     return res.status(httpStatus.OK).json({ recap: text });
   } catch (e) {
+    console.error("AI Summarization Error:", e);
     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Failed to summarize: ${e.message || e}` });
   }
 };

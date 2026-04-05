@@ -1,19 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* ── Warm Red-Orange Palette ── */
+  --bg-base: #0d0805;
+  --bg-secondary: #150e08;
+  --accent-primary: #f97316;       /* orange-500 */
+  --accent-secondary: #ef4444;     /* red-500    */
+  --accent-hover: #ea6c0a;
+  --accent-glow: rgba(249, 115, 22, 0.35);
+  --accent-glow-red: rgba(239, 68, 68, 0.28);
+  --accent-danger: #dc2626;
+  --accent-danger-hover: #b91c1c;
+
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(255, 200, 150, 0.28);
+  --glass-blur: blur(20px);
+  --glass-blur-light: blur(10px);
+
+  /* Text */
+  --text-primary: #fdf4ee;
+  --text-secondary: rgba(253, 244, 238, 0.62);
+  --text-muted: rgba(253, 244, 238, 0.38);
+
+  /* Radii */
+  --radius-pill: 9999px;
+  --radius-xl: 20px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+
+  /* Shadows */
+  --shadow-glow: 0 0 24px rgba(249, 115, 22, 0.22);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.65);
+
+  /* Transitions */
+  --transition-fast: 0.18s ease;
+  --transition-base: 0.25s ease;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html { scroll-behavior: smooth; }
+
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(249, 115, 22, 0.25);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(249, 115, 22, 0.45); }
+
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* ── Shared Pill Button ── */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-base);
+  outline: none;
+  letter-spacing: 0.01em;
+}
+
+.btn-pill-primary {
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  color: white;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.btn-pill-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+  filter: brightness(1.08);
+}
+
+.btn-pill-ghost {
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur-light);
+}
+.btn-pill-ghost:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-1px);
+}
+
+.btn-pill-outline {
+  background: transparent;
+  color: var(--accent-primary);
+  border: 1.5px solid var(--accent-primary);
+}
+.btn-pill-outline:hover {
+  background: rgba(249, 115, 22, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.btn-pill-danger {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+}
+.btn-pill-danger:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
 }

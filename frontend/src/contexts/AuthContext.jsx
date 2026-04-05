@@ -24,36 +24,29 @@ export const AuthProvider = ({ children }) => {
 
     const handleRegister = async (name, username, password) => {
         try {
-            let request = await client.post("/register", {
-                name: name,
-                username: username,
-                password: password
-            })
-
-
-            if (request.status === httpStatus.CREATED) {
-                return request.data.message;
-            }
+            const resp = await client.post("/register", { name, username, password });
+            return resp.data.message;
         } catch (err) {
+            if (err.response && err.response.data && err.response.data.message) {
+                throw new Error(err.response.data.message);
+            }
             throw err;
         }
     }
 
     const handleLogin = async (username, password) => {
         try {
-            let request = await client.post("/login", {
-                username: username,
-                password: password
-            });
-
-            console.log(username, password)
-            console.log(request.data)
-
-            if (request.status === httpStatus.OK) {
-                localStorage.setItem("token", request.data.token);
-                router("/home")
+            const resp = await client.post("/login", { username, password });
+            const token = resp?.data?.token;
+            if (token) {
+                localStorage.setItem("token", token);
             }
+            router("/home");
+            return resp.data;
         } catch (err) {
+            if (err.response && err.response.data && err.response.data.message) {
+                throw new Error(err.response.data.message);
+            }
             throw err;
         }
     }
@@ -74,13 +67,13 @@ export const AuthProvider = ({ children }) => {
 
     const addToUserHistory = async (meetingCode) => {
         try {
-            let request = await client.post("/add_to_activity", {
+            const resp = await client.post("/add_to_history", {
                 token: localStorage.getItem("token"),
                 meeting_code: meetingCode
             });
-            return request
-        } catch (e) {
-            throw e;
+            return resp.data;
+        } catch (err) {
+            throw err;
         }
     }
 

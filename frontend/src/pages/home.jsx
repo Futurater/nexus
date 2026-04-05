@@ -2,103 +2,117 @@ import React, { useContext, useState } from 'react'
 import withAuth from '../utils/withAuth'
 import { useNavigate } from 'react-router-dom'
 import "../App.css";
-import { Button, IconButton, TextField } from '@mui/material';
 import RestoreIcon from '@mui/icons-material/Restore';
+import LogoutIcon from '@mui/icons-material/Logout';
+import BoltIcon from '@mui/icons-material/Bolt';
+import SecurityIcon from '@mui/icons-material/Security';
 import { AuthContext } from '../contexts/AuthContext';
 
 function HomeComponent() {
-
-
     let navigate = useNavigate();
     const [meetingCode, setMeetingCode] = useState("");
 
-
-    const {addToUserHistory} = useContext(AuthContext);
+    const { addToUserHistory } = useContext(AuthContext);
     let handleJoinVideoCall = async () => {
-        await addToUserHistory(meetingCode)
-        navigate(`/${meetingCode}`)
+        if (!meetingCode.trim()) return;
+        await addToUserHistory(meetingCode);
+        navigate(`/${meetingCode}`);
     }
 
     return (
-        <>
+        <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+            <div className="bgMesh" />
 
+            {/* Navbar */}
             <div className="navBar">
-
-                <div style={{ display: "flex", alignItems: "center" }}>
-
-                    <h2>NEXUS</h2>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingRight: "32px" }}>
-                    <Button
+                <div className="navBrand">NEXUS</div>
+                <div className="navActions">
+                    <button
+                        className="btn-pill btn-pill-ghost"
                         onClick={() => navigate("/history")}
-                        variant="outlined"
-                        startIcon={<RestoreIcon />}
-                        sx={{
-                            borderColor: '#2563EB',
-                            color: '#2563EB',
-                            textTransform: 'none',
-                            '&:hover': {
-                                borderColor: '#1E4ED8',
-                                backgroundColor: 'rgba(37,99,235,0.08)'
-                            }
-                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                     >
+                        <RestoreIcon style={{ fontSize: '1.1rem' }} />
                         History
-                    </Button>
-
-                    <Button
+                    </button>
+                    <button
+                        className="btn-pill btn-pill-danger"
                         onClick={() => {
-                            localStorage.removeItem("token")
-                            navigate("/auth")
+                            localStorage.removeItem("token");
+                            navigate("/auth");
                         }}
-                        variant="contained"
-                        sx={{
-                            backgroundColor: '#2563EB',
-                            color: '#fff',
-                            textTransform: 'none',
-                            '&:hover': { backgroundColor: '#1E4ED8' }
-                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                     >
+                        <LogoutIcon style={{ fontSize: '1.1rem' }} />
                         Logout
-                    </Button>
+                    </button>
                 </div>
-
-
             </div>
 
-
+            {/* Main */}
             <div className="meetContainer">
                 <div className="leftPanel">
-                    <div>
-                        <h2>Keep the conversation going, wherever you are.</h2>
+                    <h2>Keep the conversation going, wherever you are.</h2>
 
-                        <div style={{ display: 'flex', gap: "10px" }}>
+                    <div className="joinBox">
+                        <input
+                            type="text"
+                            placeholder="Enter meeting code…"
+                            value={meetingCode}
+                            onChange={e => setMeetingCode(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleJoinVideoCall()}
+                            style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                border: '1.5px solid rgba(249,115,22,0.22)',
+                                borderRadius: '9999px',
+                                padding: '12px 22px',
+                                fontSize: '0.95rem',
+                                color: '#fdf4ee',
+                                outline: 'none',
+                                minWidth: '240px',
+                                flex: 1,
+                                backdropFilter: 'blur(8px)',
+                                fontFamily: 'Inter, sans-serif',
+                                transition: 'border-color 0.2s, box-shadow 0.2s',
+                            }}
+                            onFocus={e => {
+                                e.target.style.borderColor = '#f97316';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.16)';
+                            }}
+                            onBlur={e => {
+                                e.target.style.borderColor = 'rgba(249,115,22,0.22)';
+                                e.target.style.boxShadow = 'none';
+                            }}
+                        />
+                        <button
+                            className="btn-pill btn-pill-primary"
+                            onClick={handleJoinVideoCall}
+                        >
+                            Join →
+                        </button>
+                    </div>
 
-                            <TextField onChange={e => setMeetingCode(e.target.value)} id="outlined-basic" label="Meeting Code" variant="outlined" />
-                            <Button
-                                onClick={handleJoinVideoCall}
-                                variant='contained'
-                                sx={{
-                                    backgroundColor: '#2563EB',
-                                    color: '#fff',
-                                    textTransform: 'none',
-                                    '&:hover': { backgroundColor: '#1E4ED8' }
-                                }}
-                            >
-                                Join
-                            </Button>
-
+                    <div className="statPills">
+                        <div className="statPill">
+                            <BoltIcon style={{ fontSize: '1rem', color: '#fb923c' }} />
+                            <strong>HD</strong> Video
+                        </div>
+                        <div className="statPill">
+                            <SecurityIcon style={{ fontSize: '1rem', color: '#f87171' }} />
+                            <strong>E2E</strong> Encrypted
+                        </div>
+                        <div className="statPill">
+                            ✨ AI-Powered Recaps
                         </div>
                     </div>
                 </div>
-                <div className='rightPanel'>
-                    <img srcSet='/logo3.png' alt="" />
+
+                <div className="rightPanel">
+                    <img src='/join_meeting_demo.png' alt="Nexus illustration" />
                 </div>
             </div>
-        </>
+        </div>
     )
 }
-
 
 export default withAuth(HomeComponent)

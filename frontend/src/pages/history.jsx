@@ -1,27 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AuthContext } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom';
-import Card from '@mui/material/Card';
-import Box from '@mui/material/Box';
-import CardActions from '@mui/material/CardActions';
-import CardContent from '@mui/material/CardContent';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import HomeIcon from '@mui/icons-material/Home';
-import ReactMarkdown from 'react-markdown';
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import VideoCallIcon from '@mui/icons-material/VideoCall';
+import ReactMarkdown from 'react-markdown';
+import "../App.css";
 
-import { IconButton } from '@mui/material';
 export default function History() {
 
-
     const { getHistoryOfUser } = useContext(AuthContext);
-
-    const [meetings, setMeetings] = useState([])
-    const [openRecap, setOpenRecap] = useState(false)
-    const [activeRecap, setActiveRecap] = useState("")
-
-
+    const [meetings, setMeetings] = useState([]);
+    const [openRecap, setOpenRecap] = useState(false);
+    const [activeRecap, setActiveRecap] = useState("");
     const routeTo = useNavigate();
 
     useEffect(() => {
@@ -30,84 +21,108 @@ export default function History() {
                 const history = await getHistoryOfUser();
                 setMeetings(history);
             } catch {
-                // IMPLEMENT SNACKBAR
+                // TODO: Snackbar
             }
         }
-
         fetchHistory();
     }, [])
 
     let formatDate = (dateString) => {
-
         const date = new Date(dateString);
-        const day = date.getDate().toString().padStart(2, "0");
-        const month = (date.getMonth() + 1).toString().padStart(2, "0")
-        const year = date.getFullYear();
-
-        return `${day}/${month}/${year}`
-
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     }
 
     return (
-        <div>
+        <div className="historyPageContainer">
+            <div className="bgMesh" />
 
-            <IconButton onClick={() => {
-                routeTo("/home")
-            }}>
-                <HomeIcon />
-            </IconButton >
-            {
-                (meetings.length !== 0) ? meetings.map((e, i) => {
-                    return (
+            {/* Sticky nav */}
+            <div className="historyNav">
+                <button
+                    className="btn-pill btn-pill-ghost"
+                    onClick={() => routeTo("/home")}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px' }}
+                >
+                    <ArrowBackIcon style={{ fontSize: '1rem' }} />
+                    Back
+                </button>
+                <h2>NEXUS</h2>
+            </div>
 
-                        <>
+            {/* Content */}
+            <div className="historyContent">
+                <h1 className="historyTitle">Meeting History</h1>
+                <p className="historySubtitle">Review your past sessions and AI-powered recaps.</p>
 
+                {meetings.length === 0 ? (
+                    <div className="emptyHistory">
+                        <VideoCallIcon style={{ fontSize: '3rem', display: 'block', margin: '0 auto 12px', opacity: 0.3 }} />
+                        <h3>No meetings yet</h3>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: 6 }}>
+                            Start a video call and it'll appear here.
+                        </p>
+                    </div>
+                ) : meetings.map((e, i) => (
+                    <div key={i} className="meetingCard" style={{ animationDelay: `${i * 0.06}s` }}>
+                        <div className="meetingCardInfo">
+                            <span className="meetingCode"># {e.meetingCode}</span>
+                            <span className="meetingDate">{formatDate(e.date)}</span>
+                        </div>
+                        <button
+                            className="btn-pill btn-pill-outline"
+                            style={{ fontSize: '0.84rem', padding: '8px 20px' }}
+                            onClick={() => {
+                                setActiveRecap(e.recap_markdown || "");
+                                setOpenRecap(true);
+                            }}
+                        >
+                            View Recap
+                        </button>
+                    </div>
+                ))}
+            </div>
 
-                            <Card key={i} variant="outlined">
-
-
-                                <CardContent>
-                                    <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom>
-                                        Code: {e.meetingCode}
-                                    </Typography>
-
-                                    <Typography sx={{ mb: 1.5 }} color="text.secondary">
-                                        Date: {formatDate(e.date)}
-                                    </Typography>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => {
-                                            setActiveRecap(e.recap_markdown || "");
-                                            setOpenRecap(true);
-                                        }}
-                                        sx={{ borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
-                                    >
-                                        View Recap
-                                    </Button>
-
-                                </CardContent>
-
-
-                            </Card>
-
-
-                        </>
-                    )
-                }) : <></>
-
-            }
-
-            <Dialog open={openRecap} onClose={() => setOpenRecap(false)} fullWidth maxWidth="md">
-                <DialogTitle>Meeting Recap</DialogTitle>
-                <DialogContent>
+            {/* Recap dialog (keep MUI for functionality) */}
+            <Dialog
+                open={openRecap}
+                onClose={() => setOpenRecap(false)}
+                fullWidth
+                maxWidth="md"
+                PaperProps={{
+                    style: {
+                        background: 'rgba(15,9,5,0.94)',
+                        backdropFilter: 'blur(24px)',
+                        border: '1px solid rgba(249,115,22,0.14)',
+                        borderRadius: '20px',
+                        color: '#fdf4ee',
+                        boxShadow: '0 24px 64px rgba(0,0,0,0.75)',
+                    }
+                }}
+            >
+                <DialogTitle style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: 700,
+                    borderBottom: '1px solid rgba(249,115,22,0.1)',
+                    paddingBottom: '16px',
+                    background: 'linear-gradient(90deg, #fb923c, #f87171)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                }}>
+                    Meeting Recap
+                </DialogTitle>
+                <DialogContent style={{ paddingTop: '20px', color: '#f5d9c8' }}>
                     {activeRecap ? (
-                        <ReactMarkdown>{activeRecap}</ReactMarkdown>
+                        <div style={{ lineHeight: 1.8 }}>
+                            <ReactMarkdown>{activeRecap}</ReactMarkdown>
+                        </div>
                     ) : (
-                        <Typography color="text.secondary">No recap available for this meeting.</Typography>
+                        <p style={{ color: 'rgba(240,244,255,0.45)', fontStyle: 'italic' }}>
+                            No recap available for this meeting.
+                        </p>
                     )}
                 </DialogContent>
             </Dialog>
-
         </div>
     )
 }

@@ -61,7 +61,6 @@ export default function VideoMeetComponent() {
 
     let [videos, setVideos] = useState([])
     let [summarizeOpen, setSummarizeOpen] = useState(false)
-    let [transcriptText, setTranscriptText] = useState("")
     let [recapMarkdown, setRecapMarkdown] = useState("")
     let [summarizeLoading, setSummarizeLoading] = useState(false)
     let [summarizeError, setSummarizeError] = useState("")
@@ -69,6 +68,8 @@ export default function VideoMeetComponent() {
     const transcriptListRef = useRef(null)
     const [manualNote, setManualNote] = useState("")
     const [showTranscript, setShowTranscript] = useState(false)
+    const meetingStartRef = useRef(null)
+    let [meetingEnded, setMeetingEnded] = useState(false)
 
     // TODO
     // if(isChrome() === false) {
@@ -405,7 +406,7 @@ export default function VideoMeetComponent() {
             let tracks = localVideoref.current.srcObject.getTracks()
             tracks.forEach(track => track.stop())
         } catch (e) { }
-        window.location.href = "/"
+        setMeetingEnded(true)
     }
 
     let openChat = () => {
@@ -508,8 +509,47 @@ export default function VideoMeetComponent() {
     }
     
     let connect = () => {
+        meetingStartRef.current = Date.now();
         setAskForUsername(false);
         getMedia();
+    }
+
+    const buildPayload = () => {
+        const combined = [];
+        let order = 0;
+        messages.forEach((m) => {
+            combined.push({ kind: 'chat', sender: m.sender || 'Unknown', text: m.data || '', timestamp: m.timestamp ?? null, order: order++ });
+        });
+        meetingLog.forEach((e) => {
+            combined.push({ kind: 'transcript', sender: e.user || 'Unknown', text: e.text || '', timestamp: e.timestamp ?? null, order: order++ });
+        });
+
+        const hasTimestamp = combined.some(entry => entry.timestamp);
+
+        if (hasTimestamp) {
+            combined.sort((a, b) => {
+                if (a.timestamp && b.timestamp) return a.timestamp - b.timestamp;
+                if (a.timestamp && !b.timestamp) return -1;
+                if (!a.timestamp && b.timestamp) return 1;
+                return a.order - b.order;
+            });
+        }
+
+        const formatted = combined.map(entry => entry.kind === 'chat' ? `[CHAT] ${entry.sender}: ${entry.text}` : `[TRANSCRIPT] ${entry.sender}: ${entry.text}`).join('\n');
+
+        return formatted.trim();
+    }
+
+    const getCallDuration = () => {
+        if (!meetingStartRef.current) return '0s';
+        const durationMs = Date.now() - meetingStartRef.current;
+        const seconds = Math.floor(durationMs / 1000);
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+        if (mins > 0) return `${mins}m ${secs}s`;
+        return `${secs}s`;
     }
 
 
@@ -519,116 +559,219 @@ export default function VideoMeetComponent() {
             {askForUsername === true ?
 
                 <div className={styles.lobbyContainer}>
-
-
+                    <div className={styles.lobbyBrand}>NEXUS</div>
                     <h2 className={styles.lobbyTitle}>Enter into Lobby</h2>
                     <div className={styles.lobbyActions}>
-                        <TextField
-                            id="outlined-basic"
-                            label="Username"
+                        <input
+                            className={styles.lobbyInput}
+                            placeholder="Your display name…"
                             value={username}
                             onChange={e => setUsername(e.target.value)}
-                            variant="outlined"
-                            sx={{ minWidth: '240px' }}
+                            onKeyDown={e => e.key === 'Enter' && connect()}
                         />
-                        <Button
-                            variant="contained"
-                            onClick={connect}
-                            sx={{
-                                backgroundColor: '#2563EB',
-                                textTransform: 'none',
-                                '&:hover': { backgroundColor: '#1E4ED8' }
-                            }}
-                        >
-                            Connect
-                        </Button>
+                        <button className={styles.connectBtn} onClick={connect}>
+                            Join Room →
+                        </button>
                     </div>
-
 
                     <div className={styles.lobbyPreview}>
                         <video ref={localVideoref} autoPlay muted></video>
                     </div>
-
                 </div> :
 
 
                 <div className={styles.meetVideoContainer}>
+                    {meetingEnded ? (
+                        <div style={{
+                            position: 'fixed',
+                            inset: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(15,9,5,0.94)',
+                            backdropFilter: 'blur(24px)',
+                            zIndex: 1200,
+                        }}>
+                            <div style={{
+                                width: 'min(720px, 92%)',
+                                padding: '28px',
+                                borderRadius: '20px',
+                                border: '1px solid rgba(249,115,22,0.14)',
+                                background: 'rgba(15,9,5,0.94)',
+                                color: '#fdf4ee',
+                                boxShadow: '0 24px 64px rgba(0,0,0,0.75)',
+                                textAlign: 'center',
+                                fontFamily: 'Inter, sans-serif'
+                            }}>
+                                <h2 style={{ margin: 0, fontSize: '1.6rem' }}>Meeting Ended</h2>
+                                <p style={{ color: 'rgba(253,244,238,0.55)', marginTop: 12 }}>Duration: <strong>{getCallDuration()}</strong></p>
+                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: 18 }}>
+                                    <button
+                                        onClick={() => setSummarizeOpen(true)}
+                                        style={{
+                                            padding: '11px 22px',
+                                            borderRadius: '9999px',
+                                            border: 'none',
+                                            background: 'linear-gradient(135deg, #f97316, #ef4444)',
+                                            color: 'white',
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            boxShadow: '0 6px 20px rgba(249,115,22,0.38)'
+                                        }}
+                                    >
+                                        ✨ Get Meeting Summary
+                                    </button>
+                                    <button
+                                        onClick={() => window.location.href = '/'}
+                                        style={{
+                                            padding: '11px 22px',
+                                            borderRadius: '9999px',
+                                            border: '1px solid rgba(249,115,22,0.14)',
+                                            background: 'transparent',
+                                            color: '#fdf4ee',
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Leave →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
 
                     {showModal ? <div className={styles.chatRoom}>
 
                         <div className={styles.chatContainer}>
-                            <h1>Chat</h1>
+                            <div className={styles.chatTitle}>💬 Chat</div>
 
                             <div className={styles.chattingDisplay}>
-
-                                {messages.length !== 0 ? messages.map((item, index) => {
-
-                                    return (
-                                        <div style={{ marginBottom: "20px" }} key={index}>
-                                            <p style={{ fontWeight: "bold" }}>{item.sender}</p>
-                                            <p>{item.data}</p>
-                                        </div>
-                                    )
-                                }) : <p>No Messages Yet</p>}
-
-
+                                {messages.length !== 0 ? messages.map((item, index) => (
+                                    <div className={styles.chatMessage} key={index}>
+                                        <p className={styles.chatSender}>{item.sender}</p>
+                                        <p className={styles.chatText}>{item.data}</p>
+                                    </div>
+                                )) : (
+                                    <p style={{ color: 'rgba(240,244,255,0.35)', fontSize: '0.85rem', textAlign: 'center', marginTop: 24 }}>No messages yet…</p>
+                                )}
                             </div>
 
                             <div className={styles.chattingArea}>
-                                <TextField value={message} onChange={(e) => setMessage(e.target.value)} id="outlined-basic" label="Enter Your chat" variant="outlined" />
-                                <Button variant='contained' onClick={sendMessage}>Send</Button>
+                                <input
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                                    placeholder="Message…"
+                                    style={{
+                                        flex: 1,
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(249,115,22,0.18)',
+                                        borderRadius: '9999px',
+                                        padding: '9px 14px',
+                                        color: '#fdf4ee',
+                                        fontSize: '0.84rem',
+                                        outline: 'none',
+                                        fontFamily: 'Inter, sans-serif',
+                                    }}
+                                />
+                                <button
+                                    onClick={sendMessage}
+                                    style={{
+                                        padding: '9px 14px',
+                                        borderRadius: '9999px',
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #f97316, #ef4444)',
+                                        color: 'white',
+                                        fontSize: '0.84rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        fontFamily: 'Inter, sans-serif',
+                                        flexShrink: 0,
+                                    }}
+                                >Send</button>
                             </div>
-
-
                         </div>
                     </div> : <></>}
 
 
                     <div className={styles.buttonContainers}>
-                        <IconButton onClick={handleVideo} style={{ color: "white" }}>
-                            {(video === true) ? <VideocamIcon /> : <VideocamOffIcon />}
-                        </IconButton>
-                        <IconButton onClick={handleEndCall} style={{ color: "red" }}>
-                            <CallEndIcon  />
-                        </IconButton>
-                        <IconButton onClick={handleAudio} style={{ color: "white" }}>
+                        {/* Mic */}
+                        <button
+                            className={styles.iconPill}
+                            onClick={handleAudio}
+                            title={audio ? 'Mute' : 'Unmute'}
+                        >
                             {audio === true ? <MicIcon /> : <MicOffIcon />}
-                        </IconButton>
-                        <Button
-                            variant="outlined"
-                            onClick={() => (isListening ? stop() : start())}
-                            sx={{ ml: 1, borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
-                        >
-                            {isListening ? "Stop Captions" : "Start Captions"}
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            onClick={() => setShowTranscript(!showTranscript)}
-                            sx={{ ml: 1, borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
-                        >
-                            {showTranscript ? "Hide Log" : "Show Log"}
-                        </Button>
-                        <Button
-                            variant="contained"
-                            onClick={() => setSummarizeOpen(true)}
-                            sx={{ backgroundColor: '#2563EB', textTransform: 'none', ml: 1 }}
-                        >
-                            Summarize
-                        </Button>
+                        </button>
 
-                        <IconButton
+                        {/* Camera */}
+                        <button
+                            className={styles.iconPill}
+                            onClick={handleVideo}
+                            title={video ? 'Stop camera' : 'Start camera'}
+                        >
+                            {(video === true) ? <VideocamIcon /> : <VideocamOffIcon />}
+                        </button>
+
+                        {/* End Call */}
+                        <button
+                            className={`${styles.iconPill} ${styles.iconPillDanger}`}
+                            onClick={handleEndCall}
+                            title="End call"
+                            style={{ width: '52px', height: '52px' }}
+                        >
+                            <CallEndIcon />
+                        </button>
+
+                        {/* Screen share */}
+                        <button
+                            className={styles.iconPill}
                             onClick={handleScreen}
                             disabled={!screenAvailable}
-                            style={{ color: "white", opacity: screenAvailable ? 1 : 0.5 }}
+                            title="Share screen"
+                            style={{ opacity: screenAvailable ? 1 : 0.38, cursor: screenAvailable ? 'pointer' : 'not-allowed' }}
                         >
                             {screen ? <StopScreenShareIcon /> : <ScreenShareIcon />}
-                        </IconButton>
+                        </button>
 
-                        <Badge badgeContent={newMessages} max={999} color='orange'>
-                            <IconButton onClick={() => setModal(!showModal)} style={{ color: "white" }}>
-                                <ChatIcon />                        </IconButton>
+                        {/* Captions */}
+                        <button
+                            className={`${styles.textPill} ${isListening ? styles.textPillActive : ''}`}
+                            onClick={() => (isListening ? stop() : start())}
+                        >
+                            {isListening ? '⏹ Stop Captions' : '💬 Live Captions'}
+                        </button>
+
+                        {/* Log */}
+                        <button
+                            className={`${styles.textPill} ${showTranscript ? styles.textPillActive : ''}`}
+                            onClick={() => setShowTranscript(!showTranscript)}
+                        >
+                            {showTranscript ? 'Hide Log' : '📋 Show Log'}
+                        </button>
+
+                        {/* Summarize */}
+                        <button
+                            className={`${styles.textPill} ${styles.textPillActive}`}
+                            onClick={() => setSummarizeOpen(true)}
+                        >
+                            ✨ Summarize
+                        </button>
+
+                        {/* Chat toggle */}
+                        <Badge badgeContent={newMessages} max={999} color='primary'>
+                            <button
+                                className={`${styles.iconPill} ${showModal ? styles.textPillActive : ''}`}
+                                onClick={() => setModal(!showModal)}
+                                style={{ width: '48px', height: '48px' }}
+                                title="Chat"
+                            >
+                                <ChatIcon />
+                            </button>
                         </Badge>
-
                     </div>
 
                     {interimText && (
@@ -679,12 +822,12 @@ export default function VideoMeetComponent() {
                                 size="small"
                                 fullWidth
                                 sx={{
-                                    '& .MuiInputBase-input': { color: '#fff' },
-                                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.85)' },
-                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
-                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fff' },
-                                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' }
+                                    '& .MuiInputBase-input': { color: '#fdf4ee' },
+                                    '& .MuiInputLabel-root': { color: 'rgba(253,244,238,0.7)' },
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(249,115,22,0.25)' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(249,115,22,0.45)' },
+                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fb923c' },
+                                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#f97316' }
                                 }}
                             />
                             <Button
@@ -699,40 +842,80 @@ export default function VideoMeetComponent() {
                                     }
                                     setManualNote("");
                                 }}
-                                sx={{ mt: 1, borderColor: '#2563EB', color: '#2563EB', textTransform: 'none' }}
+                                sx={{ mt: 1, borderColor: '#f97316', color: '#fb923c', textTransform: 'none',
+                                    borderRadius: '9999px',
+                                    '&:hover': { borderColor: '#f97316', background: 'rgba(249,115,22,0.1)' }
+                                }}
                             >
                                 Add Note
                             </Button>
                         </div>
                     </div> : null}
 
+                        </>
+                    )}
+
                 </div>
 
             }
 
-            <Dialog open={summarizeOpen} onClose={() => setSummarizeOpen(false)} fullWidth maxWidth="md">
-                <DialogTitle>Generate Smart Recap</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        label="Paste transcript"
-                        value={transcriptText}
-                        onChange={(e) => setTranscriptText(e.target.value)}
-                        multiline
-                        minRows={6}
-                        fullWidth
-                        sx={{ my: 2 }}
-                    />
-                    <Button
-                        variant="contained"
+            <Dialog open={summarizeOpen} onClose={() => setSummarizeOpen(false)} fullWidth maxWidth="md"
+                PaperProps={{
+                    style: {
+                        background: 'rgba(15,9,5,0.94)',
+                        backdropFilter: 'blur(24px)',
+                        border: '1px solid rgba(249,115,22,0.14)',
+                        borderRadius: '20px',
+                        color: '#fdf4ee',
+                        boxShadow: '0 24px 64px rgba(0,0,0,0.75)',
+                    }
+                }}
+            >
+                <DialogTitle style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '1.2rem',
+                    borderBottom: '1px solid rgba(249,115,22,0.1)',
+                    paddingBottom: '16px',
+                    background: 'linear-gradient(90deg, #fb923c, #f87171)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                }}>✨ Generate Smart Recap</DialogTitle>
+                <DialogContent style={{ paddingTop: '20px' }}>
+                    <div style={{ marginBottom: '14px' }}>
+                        <div style={{ marginBottom: 8, fontWeight: 700, color: '#fdf4ee' }}>Meeting Context to be Summarized:</div>
+                        {buildPayload() ? (
+                            <pre style={{
+                                maxHeight: 320,
+                                overflowY: 'auto',
+                                whiteSpace: 'pre-wrap',
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(249,115,22,0.08)',
+                                padding: 12,
+                                borderRadius: 12,
+                                color: '#fdf4ee',
+                                fontFamily: 'Inter, sans-serif',
+                                fontSize: '0.9rem',
+                                lineHeight: 1.5
+                            }}>{buildPayload()}</pre>
+                        ) : (
+                            <p style={{ color: 'rgba(253,244,238,0.55)' }}>No conversation data found — start Live Captions or send a chat message before summarizing.</p>
+                        )}
+                    </div>
+                    <button
                         onClick={async () => {
                             try {
                                 setSummarizeLoading(true);
                                 setSummarizeError("");
                                 setRecapMarkdown("");
                                 const code = window.location.pathname.replace("/", "");
-                                const compiled = meetingLog.length
-                                  ? meetingLog.map(e => `${e.user}: ${e.text}`).join("\n")
-                                  : transcriptText;
+                                const compiled = buildPayload();
+                                if (!compiled) {
+                                    setSummarizeError("No conversation data to summarize.");
+                                    setSummarizeLoading(false);
+                                    return;
+                                }
                                 const resp = await fetch(`${server_url}/api/meetings/summarize`, {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
@@ -750,15 +933,30 @@ export default function VideoMeetComponent() {
                                 setSummarizeLoading(false);
                             }
                         }}
-                        sx={{ backgroundColor: '#2563EB', textTransform: 'none' }}
+                        disabled={summarizeLoading || !buildPayload()}
+                        style={{
+                            padding: '11px 28px',
+                            borderRadius: '9999px',
+                            border: 'none',
+                            background: summarizeLoading
+                                ? 'rgba(249,115,22,0.35)'
+                                : 'linear-gradient(135deg, #f97316, #ef4444)',
+                            color: 'white',
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: 700,
+                            fontSize: '0.92rem',
+                            cursor: summarizeLoading ? 'not-allowed' : 'pointer',
+                            boxShadow: summarizeLoading ? 'none' : '0 6px 18px rgba(249,115,22,0.38)',
+                            transition: 'all 0.22s',
+                        }}
                     >
-                        {summarizeLoading ? "Summarizing..." : "Summarize"}
-                    </Button>
+                        {summarizeLoading ? "Summarizing…" : "✨ Summarize"}
+                    </button>
                     {summarizeError ? (
-                        <p style={{ color: "red", marginTop: 12 }}>{summarizeError}</p>
+                        <p style={{ color: "#fca5a5", marginTop: 12, fontSize: '0.88rem' }}>{summarizeError}</p>
                     ) : null}
                     {recapMarkdown ? (
-                        <div style={{ marginTop: 16 }}>
+                        <div style={{ marginTop: 20, color: '#f5d9c8', lineHeight: 1.8 }}>
                             <ReactMarkdown>{recapMarkdown}</ReactMarkdown>
                         </div>
                     ) : null}
