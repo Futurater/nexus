@@ -75,7 +75,4 @@
 | **Render** (Backend) | Create a **Web Service**, point it to the `backend` folder. | Provide `MONGO_URI` and `GEMINI_API_KEY` secrets. |
 | **Vercel** (Frontend) | Create a **Static Site** (Vite preset), point it to the `frontend` folder. | Ensure frontend connects natively to backend URL. |
 
----
-<p align="center">
-  Built with ❤️ using React, Node.js, WebRTC, and Gemini AI.
-</p>
+
