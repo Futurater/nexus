@@ -23,7 +23,10 @@ var connections = {};
 const peerConfigConnections = {
     "iceServers": [
         { "urls": "stun:stun.l.google.com:19302" },
-        { "urls": "stun:global.stun.twilio.com:3478" }
+        { "urls": "stun:global.stun.twilio.com:3478" },
+        { "urls": "turn:openrelay.metered.ca:80", "username": "openrelayproject", "credential": "openrelayproject" },
+        { "urls": "turn:openrelay.metered.ca:443", "username": "openrelayproject", "credential": "openrelayproject" },
+        { "urls": "turn:openrelay.metered.ca:443?transport=tcp", "username": "openrelayproject", "credential": "openrelayproject" }
     ]
 }
 
@@ -283,43 +286,46 @@ export default function VideoMeetComponent() {
                     }
 
                     // Wait for their video stream
-                    connections[socketListId].onaddstream = (event) => {
-                        let videoExists = videoRef.current.find(video => video.socketId === socketListId);
-
-                        if (videoExists) {
-                            // Update the stream of the existing video
-                            setVideos(videos => {
+                    connections[socketListId].ontrack = (event) => {
+                        setVideos(videos => {
+                            let stream = event.streams[0];
+                            let videoExists = videos.find(video => video.socketId === socketListId);
+                            
+                            if (videoExists) {
+                                // Update the stream of the existing video
                                 const updatedVideos = videos.map(video =>
-                                    video.socketId === socketListId ? { ...video, stream: event.stream } : video
+                                    video.socketId === socketListId ? { ...video, stream: stream } : video
                                 );
                                 videoRef.current = updatedVideos;
                                 return updatedVideos;
-                            });
-                        } else {
-                            // Create a new video
-                            let newVideo = {
-                                socketId: socketListId,
-                                stream: event.stream,
-                                autoplay: true,
-                                playsinline: true
-                            };
-
-                            setVideos(videos => {
+                            } else {
+                                // Create a new video
+                                let newVideo = {
+                                    socketId: socketListId,
+                                    stream: stream,
+                                    autoplay: true,
+                                    playsinline: true
+                                };
+    
                                 const updatedVideos = [...videos, newVideo];
                                 videoRef.current = updatedVideos;
                                 return updatedVideos;
-                            });
-                        }
+                            }
+                        });
                     };
 
 
                     // Add the local video stream
                     if (window.localStream !== undefined && window.localStream !== null) {
-                        connections[socketListId].addStream(window.localStream)
+                        window.localStream.getTracks().forEach(track => {
+                            connections[socketListId].addTrack(track, window.localStream);
+                        });
                     } else {
                         let blackSilence = (...args) => new MediaStream([black(...args), silence()])
                         window.localStream = blackSilence()
-                        connections[socketListId].addStream(window.localStream)
+                        window.localStream.getTracks().forEach(track => {
+                            connections[socketListId].addTrack(track, window.localStream);
+                        });
                     }
                 })
 
@@ -328,7 +334,9 @@ export default function VideoMeetComponent() {
                         if (id2 === socketIdRef.current) continue
 
                         try {
-                            connections[id2].addStream(window.localStream)
+                            window.localStream.getTracks().forEach(track => {
+                                connections[id2].addTrack(track, window.localStream);
+                            });
                         } catch (e) { }
 
                         connections[id2].createOffer().then((description) => {
