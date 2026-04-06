@@ -14,9 +14,17 @@ function HomeComponent() {
 
     const { addToUserHistory } = useContext(AuthContext);
     let handleJoinVideoCall = async () => {
-        if (!meetingCode.trim()) return;
-        await addToUserHistory(meetingCode);
-        navigate(`/${meetingCode}`);
+        if (!meetingCode.trim()) {
+            alert("Please enter a meeting code");
+            return;
+        }
+        try {
+            await addToUserHistory(meetingCode);
+            navigate(`/${meetingCode}`);
+        } catch (error) {
+            console.error("Error joining meeting:", error);
+            alert("Failed to join meeting. Please try again.");
+        }
     }
 
     return (
@@ -57,6 +65,7 @@ function HomeComponent() {
                     <div className="joinBox">
                         <input
                             type="text"
+                            aria-label="Meeting Code"
                             placeholder="Enter meeting code…"
                             value={meetingCode}
                             onChange={e => setMeetingCode(e.target.value)}

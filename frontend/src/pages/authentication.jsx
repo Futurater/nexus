@@ -7,11 +7,11 @@ import "../App.css";
 const O = '#f97316';  // orange
 const R = '#ef4444';  // red
 
-function GlassInput({ label, type = 'text', value, onChange, id }) {
+function GlassInput({ label, type = 'text', value, onChange, id, autoComplete }) {
     const [focused, setFocused] = React.useState(false);
     return (
         <div style={{ position: 'relative', marginBottom: '16px' }}>
-            <label style={{
+            <label htmlFor={id} style={{
                 display: 'block',
                 marginBottom: '7px',
                 fontSize: '0.82rem',
@@ -27,6 +27,7 @@ function GlassInput({ label, type = 'text', value, onChange, id }) {
                 type={type}
                 value={value}
                 onChange={onChange}
+                autoComplete={autoComplete}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 style={{
@@ -180,10 +181,10 @@ export default function Authentication() {
 
                 {/* Fields */}
                 {formState === 1 && (
-                    <GlassInput id="name" label="Full Name" value={name} onChange={e => setName(e.target.value)} />
+                    <GlassInput id="name" label="Full Name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
                 )}
-                <GlassInput id="username" label="Username" value={username} onChange={e => setUsername(e.target.value)} />
-                <GlassInput id="password" label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                <GlassInput id="username" label="Username" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" />
+                <GlassInput id="password" label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
 
                 {/* Error */}
                 {error && (

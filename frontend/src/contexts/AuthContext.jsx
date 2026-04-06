@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
 
     const addToUserHistory = async (meetingCode) => {
         try {
-            const resp = await client.post("/add_to_history", {
+            const resp = await client.post("/add_to_activity", {
                 token: localStorage.getItem("token"),
                 meeting_code: meetingCode
             });
