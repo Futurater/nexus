@@ -9,6 +9,15 @@
   Connect face-to-face from anywhere — with live chat, screen sharing, live captions, and AI-powered meeting recaps.
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React"/>
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js"/>
+  <img src="https://img.shields.io/badge/MongoDB-Mongoose-47A248?style=flat-square&logo=mongodb&logoColor=white" alt="MongoDB"/>
+  <img src="https://img.shields.io/badge/Socket.IO-4.x-010101?style=flat-square&logo=socketdotio&logoColor=white" alt="Socket.IO"/>
+  <img src="https://img.shields.io/badge/WebRTC-Peer--to--Peer-333333?style=flat-square&logo=webrtc&logoColor=white" alt="WebRTC"/>
+  <img src="https://img.shields.io/badge/Gemini%20AI-1.5%20Flash-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini AI"/>
+</p>
+
 ## ✨ Highlights
 
 | Feature | Description |
@@ -19,15 +28,6 @@
 | **🗣️ Live Captions** | Real-time speech-to-text transcriptions natively rendered in the browser. |
 | **🤖 AI Recaps** | Automatically generate clean markdown summaries of your transcripts using Google Gemini 1.5 Flash. |
 | **📜 History Logs** | Everything is securely saved—review past meeting transcripts and recaps from your dashboard. |
-
-## 🛠️ Technology Stack
-
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend** | React 18, Vite, Material UI (MUI), Socket.IO-client |
-| **Backend** | Node.js, Express, Socket.IO |
-| **Database** | MongoDB & Mongoose |
-| **AI & APIs** | Google Gemini, Web Speech API, WebRTC |
 
 ## 🚀 Running Locally
 
