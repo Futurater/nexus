@@ -236,6 +236,11 @@ export default function VideoMeetComponent() {
         var signal = JSON.parse(message)
 
         if (fromId !== socketIdRef.current) {
+            if (!connections[fromId]) {
+                console.warn("Connection for id not found", fromId);
+                return;
+            }
+
             if (signal.sdp) {
                 connections[fromId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
                     .then(() => {
@@ -320,21 +325,28 @@ export default function VideoMeetComponent() {
                     // Wait for their video stream
                     connections[socketListId].ontrack = (event) => {
                         setVideos(videos => {
-                            let stream = event.streams[0];
                             let videoExists = videos.find(video => video.socketId === socketListId);
                             
                             if (videoExists) {
-                                // Update the stream of the existing video
+                                // Create explicitly NEW stream wrapper so the ref checker fires
+                                let newStream = new MediaStream(videoExists.stream.getTracks());
+                                if (!newStream.getTracks().includes(event.track)) {
+                                    newStream.addTrack(event.track);
+                                }
+                                
                                 const updatedVideos = videos.map(video =>
-                                    video.socketId === socketListId ? { ...video, stream: stream } : video
+                                    video.socketId === socketListId ? { ...video, stream: newStream } : video
                                 );
                                 videoRef.current = updatedVideos;
                                 return updatedVideos;
                             } else {
                                 // Create a new video
+                                let newStream = new MediaStream();
+                                newStream.addTrack(event.track);
+                                
                                 let newVideo = {
                                     socketId: socketListId,
-                                    stream: stream,
+                                    stream: newStream,
                                     autoplay: true,
                                     playsinline: true
                                 };
