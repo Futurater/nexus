@@ -31,7 +31,7 @@ ${transcript}
       model: "gemini-2.5-flash",
       contents: prompt,
     });
-    const text = response.text;
+    const text = response.text();
 
     // Since the public MongoDB is down, we will skip saving to the database
     // and just directly return the AI text to the frontend!

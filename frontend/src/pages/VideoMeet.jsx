@@ -18,7 +18,18 @@ import useTranscription from '../hooks/useTranscription';
 
 const server_url = server;
 
+const RemoteVideo = ({ stream, socketId }) => {
+    const videoRef = useRef(null);
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+    return <video data-socket={socketId} ref={videoRef} autoPlay playsInline />;
+};
+
 var connections = {};
+var iceCandidateQueue = {};
 
 const peerConfigConnections = {
     "iceServers": [
@@ -41,7 +52,7 @@ export default function VideoMeetComponent() {
 
     let [audioAvailable, setAudioAvailable] = useState(true);
 
-    let [video, setVideo] = useState([]);
+    let [video, setVideo] = useState(false);
 
     let [audio, setAudio] = useState();
 
@@ -55,7 +66,7 @@ export default function VideoMeetComponent() {
 
     let [message, setMessage] = useState("");
 
-    let [newMessages, setNewMessages] = useState(3);
+    let [newMessages, setNewMessages] = useState(0);
 
     let [askForUsername, setAskForUsername] = useState(true);
 
@@ -225,19 +236,39 @@ export default function VideoMeetComponent() {
 
         if (fromId !== socketIdRef.current) {
             if (signal.sdp) {
-                connections[fromId].setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(() => {
-                    if (signal.sdp.type === 'offer') {
-                        connections[fromId].createAnswer().then((description) => {
-                            connections[fromId].setLocalDescription(description).then(() => {
-                                socketRef.current.emit('signal', fromId, JSON.stringify({ 'sdp': connections[fromId].localDescription }))
+                connections[fromId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    .then(() => {
+                        // Drain any ICE candidates that arrived before remote description was ready
+                        if (iceCandidateQueue[fromId] && iceCandidateQueue[fromId].length > 0) {
+                            console.log(`Draining ${iceCandidateQueue[fromId].length} queued ICE candidates for`, fromId);
+                            iceCandidateQueue[fromId].forEach(candidate => {
+                                connections[fromId].addIceCandidate(new RTCIceCandidate(candidate))
+                                    .catch(e => console.log('queued ICE error:', e));
+                            });
+                            iceCandidateQueue[fromId] = [];
+                        }
+
+                        if (signal.sdp.type === 'offer') {
+                            connections[fromId].createAnswer().then((description) => {
+                                connections[fromId].setLocalDescription(description).then(() => {
+                                    socketRef.current.emit('signal', fromId, JSON.stringify({ 'sdp': connections[fromId].localDescription }))
+                                }).catch(e => console.log(e))
                             }).catch(e => console.log(e))
-                        }).catch(e => console.log(e))
-                    }
-                }).catch(e => console.log(e))
+                        }
+                    }).catch(e => console.log(e))
             }
 
             if (signal.ice) {
-                connections[fromId].addIceCandidate(new RTCIceCandidate(signal.ice)).catch(e => console.log(e))
+                if (connections[fromId] && connections[fromId].remoteDescription) {
+                    // Remote description already set — add candidate immediately
+                    connections[fromId].addIceCandidate(new RTCIceCandidate(signal.ice))
+                        .catch(e => console.log('ICE error:', e));
+                } else {
+                    // Remote description not set yet — queue the candidate
+                    if (!iceCandidateQueue[fromId]) iceCandidateQueue[fromId] = [];
+                    iceCandidateQueue[fromId].push(signal.ice);
+                    console.log(`Queued ICE candidate for ${fromId}, queue size:`, iceCandidateQueue[fromId].length);
+                }
             }
         }
     }
@@ -794,17 +825,7 @@ export default function VideoMeetComponent() {
                     <div className={showTranscript ? styles.conferenceView : styles.conferenceViewChatOnly}>
                         {videos.map((video) => (
                             <div key={video.socketId}>
-                                <video
-                                    data-socket={video.socketId}
-                                    ref={ref => {
-                                        if (ref && video.stream) {
-                                            ref.srcObject = video.stream;
-                                        }
-                                    }}
-                                    autoPlay
-                                    playsInline
-                                >
-                                </video>
+                                <RemoteVideo stream={video.stream} socketId={video.socketId} />
                             </div>
 
                         ))}

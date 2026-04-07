@@ -11,8 +11,7 @@ export const connectToSocket = (server) => {
         cors: {
             origin: "*",
             methods: ["GET", "POST"],
-            allowedHeaders: ["*"],
-            credentials: true
+            allowedHeaders: ["*"]
         }
     });
 
@@ -123,6 +122,8 @@ export const connectToSocket = (server) => {
 
                         if (connections[key].length === 0) {
                             delete connections[key]
+                            delete messages[key]
+                            delete transcripts[key]
                         }
                     }
                 }
